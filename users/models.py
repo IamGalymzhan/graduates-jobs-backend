@@ -18,16 +18,25 @@ class Skill(models.Model):
         return self.name
 
 class CustomUser(AbstractUser):
-    full_name = models.CharField(max_length=255, blank=True, null=True)
+    full_name = models.CharField(max_length=255, default="")
     email = models.EmailField(unique=True)
-    user_type = models.CharField(max_length=20, choices=UserType.choices, default=UserType.STUDENT)
+    user_type = models.CharField(
+        max_length=20, choices=UserType.choices, default=UserType.STUDENT
+    )
     profile_picture = models.ImageField(upload_to="profile_pics/", blank=True, null=True)
 
     # Student-specific fields
     education = models.CharField(max_length=255, blank=True, null=True)
-    skills = models.ManyToManyField(Skill, blank=True)  # Many-to-Many relationship
-    status = models.CharField(max_length=20, choices=Status.choices, default=Status.SEARCHING)
+    skills = models.ManyToManyField(Skill, blank=True)
+    status = models.CharField(
+        max_length=20, choices=Status.choices, default=Status.SEARCHING
+    )
     resume = models.FileField(upload_to="resumes/", blank=True, null=True)
 
+    # Employer-specific fields
+    company_name = models.CharField(max_length=255, blank=True, null=True)
+    company_website = models.URLField(blank=True, null=True)
+    company_description = models.TextField(blank=True, null=True)
+
     def __str__(self):
-        return f"{self.full_name} ({self.user_type})"
+        return self.full_name

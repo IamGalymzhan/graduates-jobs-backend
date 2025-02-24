@@ -44,10 +44,21 @@ class SkillSerializer(serializers.ModelSerializer):
 class StudentProfileSerializer(serializers.ModelSerializer):
     skills = serializers.PrimaryKeyRelatedField(
         many=True, queryset=Skill.objects.all(), required=False
-    )
-    profile_picture = serializers.ImageField(required=False)
-    resume = serializers.FileField(required=False)
+    )  # ✅ Accepts only existing skill IDs
 
     class Meta:
         model = CustomUser
         fields = ["full_name", "email", "profile_picture", "education", "skills", "status", "resume"]
+
+    def update(self, instance, validated_data):
+        skills = self.context["request"].data.getlist("skills")  # ✅ Extract skills manually
+
+        # Convert skill IDs to integers
+        skills = [int(skill) for skill in skills if skill.isdigit()]
+
+        instance = super().update(instance, validated_data)  # ✅ Update other fields
+
+        if skills:
+            instance.skills.set(skills)  # ✅ Correctly update ManyToMany field
+
+        return instance
