@@ -27,7 +27,7 @@ class StudentProfileView(generics.RetrieveUpdateAPIView):
         return {"request": self.request}
 
     def update(self, request, *args, **kwargs):
-        print("Received skills data:", request.data.getlist("skills"))  # ✅ Debugging skills input
+        print("Received skills data:", request.data.getlist("skills"))
         return super().update(request, *args, **kwargs)
 
 class SkillPagination(PageNumberPagination):
@@ -41,4 +41,4 @@ class SkillListCreateView(generics.ListCreateAPIView):
     permission_classes = [permissions.IsAuthenticated]
     pagination_class = SkillPagination
     filter_backends = [filters.SearchFilter] 
-    search_fields = ["name"]  
+    search_fields = ["name"]

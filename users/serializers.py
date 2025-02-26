@@ -6,7 +6,7 @@ from .models import CustomUser, Skill
 class RegisterSerializer(serializers.ModelSerializer):
     class Meta:
         model = CustomUser
-        fields = ["username", "email", "password", "full_name", "user_type"]
+        fields = ["email", "password", "full_name", "user_type"]
         extra_kwargs = {"password": {"write_only": True}}
 
     def create(self, validated_data):
@@ -14,11 +14,11 @@ class RegisterSerializer(serializers.ModelSerializer):
         return user
 
 class LoginSerializer(serializers.Serializer):
-    username = serializers.CharField(write_only=True)
+    email = serializers.EmailField(write_only=True)  # ✅ Changed from username to email
     password = serializers.CharField(write_only=True)
 
     def validate(self, data):
-        user = authenticate(username=data["username"], password=data["password"])
+        user = authenticate(email=data["email"], password=data["password"])
         if not user:
             raise serializers.ValidationError("Invalid email or password")
 
@@ -29,12 +29,12 @@ class LoginSerializer(serializers.Serializer):
             "user": {
                 "id": user.id,
                 "full_name": user.full_name,
+                "company_name": user.company_name,
                 "email": user.email,
                 "user_type": user.user_type,
                 "profile_picture": user.profile_picture.url if user.profile_picture else None,
             },
         }
-
 
 class SkillSerializer(serializers.ModelSerializer):
     class Meta:
@@ -44,21 +44,16 @@ class SkillSerializer(serializers.ModelSerializer):
 class StudentProfileSerializer(serializers.ModelSerializer):
     skills = serializers.PrimaryKeyRelatedField(
         many=True, queryset=Skill.objects.all(), required=False
-    )  # ✅ Accepts only existing skill IDs
+    )
 
     class Meta:
         model = CustomUser
         fields = ["full_name", "email", "profile_picture", "education", "skills", "status", "resume"]
 
     def update(self, instance, validated_data):
-        skills = self.context["request"].data.getlist("skills")  # ✅ Extract skills manually
-
-        # Convert skill IDs to integers
+        skills = self.context["request"].data.getlist("skills")
         skills = [int(skill) for skill in skills if skill.isdigit()]
-
-        instance = super().update(instance, validated_data)  # ✅ Update other fields
-
+        instance = super().update(instance, validated_data)
         if skills:
-            instance.skills.set(skills)  # ✅ Correctly update ManyToMany field
-
+            instance.skills.set(skills)
         return instance
