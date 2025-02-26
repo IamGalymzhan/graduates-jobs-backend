@@ -18,3 +18,13 @@ class JobPost(models.Model):
 
     def __str__(self):
         return self.title
+
+class JobApplication(models.Model):
+    student = models.ForeignKey(CustomUser, on_delete=models.CASCADE, limit_choices_to={"user_type": UserType.STUDENT})
+    job = models.ForeignKey(JobPost, on_delete=models.CASCADE, related_name="applications")
+    cover_letter = models.TextField()
+    resume = models.FileField(upload_to="job_applications/", blank=True, null=True)
+    applied_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.student.full_name} applied for {self.job.title}"
