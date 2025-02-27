@@ -42,18 +42,19 @@ class SkillSerializer(serializers.ModelSerializer):
         fields = ["id", "name"]
 
 class StudentProfileSerializer(serializers.ModelSerializer):
-    skills = serializers.PrimaryKeyRelatedField(
-        many=True, queryset=Skill.objects.all(), required=False
-    )
-
     class Meta:
         model = CustomUser
-        fields = ["full_name", "email", "profile_picture", "education", "skills", "status", "resume"]
+        fields = ["id", "full_name", "profile_picture", "education", "skills", "status"]
 
-    def update(self, instance, validated_data):
-        skills = self.context["request"].data.getlist("skills")
-        skills = [int(skill) for skill in skills if skill.isdigit()]
-        instance = super().update(instance, validated_data)
-        if skills:
-            instance.skills.set(skills)
-        return instance
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        request = self.context.get("request")
+
+        data["skills"] = [{"id": skill.id, "name": skill.name} for skill in instance.skills.all()]
+
+        if request and request.resolver_match.url_name == "student-list":
+            data.pop("email", None)
+            data.pop("resume", None)
+
+        return data
+

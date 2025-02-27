@@ -5,6 +5,7 @@ class UserType(models.TextChoices):
     STUDENT = "student", "Student"
     EMPLOYER = "employer", "Employer"
     ADMIN = "admin", "Admin"
+    FACULTY = "faculty", "Faculty"
 
 class Status(models.TextChoices):
     SEARCHING = "searching", "Searching for Job"

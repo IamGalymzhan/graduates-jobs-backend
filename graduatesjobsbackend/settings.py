@@ -26,7 +26,7 @@ SECRET_KEY = 'django-insecure-to_*emgxb&3yo@98016+2)ddeyifb^n=$gb$02d&z_@us^u!j1
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ["192.168.0.140", "localhost", "127.0.0.1"]
 
 
 # Application definition
@@ -38,10 +38,13 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages", 
     "django.contrib.staticfiles",
+    "drf_spectacular",
+    "drf_spectacular_sidecar",
     "rest_framework",
     "corsheaders",
     "users", 
     "jobs",
+    "faculty",
 ]
 
 
@@ -56,6 +59,18 @@ MIDDLEWARE = [
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
 
+from datetime import timedelta
+
+SIMPLE_JWT = {
+    "ACCESS_TOKEN_LIFETIME": timedelta(hours=8),  
+    "REFRESH_TOKEN_LIFETIME": timedelta(days=7), 
+    "ROTATE_REFRESH_TOKENS": True,  
+    "BLACKLIST_AFTER_ROTATION": True, 
+    "ALGORITHM": "HS256",
+    "SIGNING_KEY": SECRET_KEY,
+    "AUTH_HEADER_TYPES": ("Bearer",),
+}
+
 
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",
@@ -68,6 +83,7 @@ REST_FRAMEWORK = {
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
     "PAGE_SIZE": 20,
      "DEFAULT_FILTER_BACKENDS": ["django_filters.rest_framework.DjangoFilterBackend", "rest_framework.filters.SearchFilter", "rest_framework.filters.OrderingFilter"],
+    "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
 }
 
 

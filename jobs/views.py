@@ -5,6 +5,7 @@ from .serializers import JobApplicationSerializer, JobPostSerializer
 from rest_framework.parsers import MultiPartParser, FormParser
 from jobs import serializers
 from django_filters.rest_framework import DjangoFilterBackend
+from rest_framework.exceptions import PermissionDenied
 
 
 class JobPostListCreateView(generics.ListCreateAPIView):
@@ -17,13 +18,26 @@ class JobPostListCreateView(generics.ListCreateAPIView):
     ordering_fields = ["created_at", "salary"]
     ordering = ["-created_at"]
 
+    def perform_create(self, serializer):
+        """Ensure only employers can create jobs and assign employer automatically."""
+        if self.request.user.user_type != "employer":
+            raise serializers.ValidationError({"error": "Only employers can post jobs."}) 
+        serializer.save(employer=self.request.user) 
+
 class JobPostDetailView(generics.RetrieveUpdateDestroyAPIView):
     queryset = JobPost.objects.all()
     serializer_class = JobPostSerializer
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
-        return JobPost.objects.filter(employer=self.request.user)  # Employers manage only their jobs
+        user = self.request.user
+
+        # ✅ Students, faculty, and admins can view all job posts
+        if user.user_type in ["student", "faculty", "admin"]:
+            return JobPost.objects.all()
+
+        # ✅ Employers can only see their own job posts
+        return JobPost.objects.filter(employer=user)
 
 class ApplyForJobView(generics.CreateAPIView):
     serializer_class = JobApplicationSerializer
@@ -39,6 +53,19 @@ class ApplyForJobView(generics.CreateAPIView):
             raise serializers.ValidationError({"error": "Only students can apply for jobs."})
 
         serializer.save(student=student, job=job)
+
+class StudentJobApplicationsView(generics.ListAPIView):
+    serializer_class = JobApplicationSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        user = self.request.user
+
+        # ✅ Ensure only students can see their own applications
+        if user.user_type != "student":
+            raise PermissionDenied("Only students can view their job applications.")
+
+        return JobApplication.objects.filter(student=user)
 
 class EmployerJobApplicationsView(generics.ListAPIView):
     serializer_class = JobApplicationSerializer

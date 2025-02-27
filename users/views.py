@@ -5,6 +5,8 @@ from .serializers import RegisterSerializer, LoginSerializer, StudentProfileSeri
 from rest_framework.parsers import MultiPartParser, FormParser
 from .models import CustomUser, Skill
 from rest_framework.pagination import PageNumberPagination
+from django.core.exceptions import PermissionDenied
+from django.shortcuts import get_object_or_404
 
 User = get_user_model()
 
@@ -18,7 +20,7 @@ class LoginView(TokenObtainPairView):
 class StudentProfileView(generics.RetrieveUpdateAPIView):
     serializer_class = StudentProfileSerializer
     permission_classes = [permissions.IsAuthenticated]
-    parser_classes = [MultiPartParser, FormParser]  # ✅ Allows file uploads
+    parser_classes = [MultiPartParser, FormParser] 
 
     def get_object(self):
         return self.request.user
@@ -30,8 +32,44 @@ class StudentProfileView(generics.RetrieveUpdateAPIView):
         print("Received skills data:", request.data.getlist("skills"))
         return super().update(request, *args, **kwargs)
 
+class StudentListView(generics.ListAPIView):
+    serializer_class = StudentProfileSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        user = self.request.user
+
+        if user.user_type in ["employer", "faculty", "admin"]:
+            return CustomUser.objects.filter(user_type="student")
+
+        raise PermissionDenied("You do not have permission to view this list.")
+
+
+class StudentPublicProfileView(generics.RetrieveAPIView):
+    serializer_class = StudentProfileSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        return CustomUser.objects.filter(user_type="student")
+
+    def get_object(self):
+        student_id = self.kwargs.get("pk")
+        user = self.request.user
+
+        if user.user_type == "admin":
+            return get_object_or_404(CustomUser, id=student_id, user_type="student")
+
+        if user.user_type == "student" and user.id != int(student_id):
+            raise PermissionDenied("You are not allowed to view this profile.")
+
+        if user.user_type in ["employer", "faculty", "admin"]:
+            return get_object_or_404(CustomUser, id=student_id, user_type="student")
+
+        raise PermissionDenied("You do not have permission to access this profile.")
+
+
 class SkillPagination(PageNumberPagination):
-    page_size = 10  # ✅ Default: 10 skills per page
+    page_size = 10 
     page_size_query_param = "page_size"
     max_page_size = 50
 

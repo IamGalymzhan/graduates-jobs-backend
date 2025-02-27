@@ -1,5 +1,5 @@
 from django.db import models
-from users.models import CustomUser, UserType
+from users.models import CustomUser, Skill, UserType
 
 class JobPost(models.Model):
     employer = models.ForeignKey(
@@ -14,6 +14,7 @@ class JobPost(models.Model):
         max_length=50,
         choices=[("full-time", "Full-Time"), ("part-time", "Part-Time"), ("internship", "Internship")],
     )
+    skills = models.ManyToManyField(Skill, blank=True) 
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
