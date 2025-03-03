@@ -7,6 +7,9 @@ from .models import CustomUser, Skill
 from rest_framework.pagination import PageNumberPagination
 from django.core.exceptions import PermissionDenied
 from django.shortcuts import get_object_or_404
+from django.shortcuts import redirect
+from django.conf import settings
+from rest_framework_simplejwt.tokens import RefreshToken
 
 User = get_user_model()
 
@@ -80,3 +83,43 @@ class SkillListCreateView(generics.ListCreateAPIView):
     pagination_class = SkillPagination
     filter_backends = [filters.SearchFilter] 
     search_fields = ["name"]
+
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from rest_framework_simplejwt.tokens import RefreshToken
+
+def issue_token(request):
+    """
+    After Google OAuth is complete, django-allauth redirects here.
+    If user is authenticated, we generate a JWT and redirect to the frontend
+    with the token in the URL (or you can return JSON if you prefer).
+    """
+    print("debug")
+    if request.user.is_authenticated:
+        # Create a JWT for this user
+        print("debug2")
+        refresh = RefreshToken.for_user(request.user)
+        access_token = str(refresh.access_token)
+
+        # Build the redirect URL to your frontend, e.g. localhost:3000
+        # Include the token as a query param, or in the fragment (#)
+        frontend_url = f"http://localhost:3000/googledata/?token={access_token}"
+
+        return redirect(frontend_url)
+    else:
+        # Not logged in (something went wrong), redirect with an error
+        return redirect("http://localhost:3000/googledata/?error=not_logged_in")
+
+class UserDataView(generics.RetrieveAPIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+        return Response({
+            "id": user.id,
+            "full_name": user.full_name,
+            "email": user.email,
+            "user_type": user.user_type,
+            "profile_picture": user.profile_picture.url if user.profile_picture else None,
+        })

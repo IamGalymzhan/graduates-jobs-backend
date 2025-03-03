@@ -37,11 +37,14 @@ class CustomUserManager(BaseUserManager):
 class CustomUser(AbstractUser):
     username = None  # ✅ Removed username
     email = models.EmailField(unique=True)  # ✅ Use email as unique identifier
-    full_name = models.CharField(max_length=255, default="")
+    full_name = models.CharField(max_length=255, default="", blank=True, null=True)
     user_type = models.CharField(
         max_length=20, choices=UserType.choices, default=UserType.STUDENT
     )
     profile_picture = models.ImageField(upload_to="profile_pics/", blank=True, null=True)
+
+    USERNAME_FIELD = "email"
+    REQUIRED_FIELDS = []
 
     # Student-specific fields
     education = models.CharField(max_length=255, blank=True, null=True)
@@ -57,9 +60,6 @@ class CustomUser(AbstractUser):
     company_description = models.TextField(blank=True, null=True)
 
     objects = CustomUserManager()  # ✅ Use custom manager
-
-    USERNAME_FIELD = "email"  # ✅ Use email instead of username
-    REQUIRED_FIELDS = ["full_name"]
 
     def __str__(self):
         return self.full_name
