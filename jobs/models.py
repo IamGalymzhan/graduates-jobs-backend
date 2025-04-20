@@ -26,6 +26,7 @@ class JobApplication(models.Model):
     cover_letter = models.TextField()
     resume = models.FileField(upload_to="job_applications/", blank=True, null=True)
     applied_at = models.DateTimeField(auto_now_add=True)
+    feedback = models.TextField(blank=True, null=True, help_text="Feedback from the employer about this application")
 
     def __str__(self):
         return f"{self.student.full_name} applied for {self.job.title}"

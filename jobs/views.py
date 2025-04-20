@@ -1,5 +1,6 @@
 from django.shortcuts import get_object_or_404
-from rest_framework import generics, permissions, filters
+from rest_framework import generics, permissions, filters, status
+from rest_framework.response import Response
 from .models import JobApplication, JobPost
 from .serializers import JobApplicationSerializer, JobPostSerializer
 from rest_framework.parsers import MultiPartParser, FormParser
@@ -38,6 +39,25 @@ class JobPostDetailView(generics.RetrieveUpdateDestroyAPIView):
 
         # ✅ Employers can only see their own job posts
         return JobPost.objects.filter(employer=user)
+    
+    def destroy(self, request, *args, **kwargs):
+        instance = self.get_object()
+        
+        # Only the employer who created the job post or an admin can delete it
+        if request.user.user_type == "employer" and instance.employer != request.user:
+            return Response(
+                {"error": "You can only delete your own job posts"},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        # Students and faculty cannot delete job posts
+        if request.user.user_type in ["student"]:
+            return Response(
+                {"error": "Only employers can delete their own job posts or admins can delete any job post"},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        return super().destroy(request, *args, **kwargs)
 
 class ApplyForJobView(generics.CreateAPIView):
     serializer_class = JobApplicationSerializer
@@ -67,9 +87,80 @@ class StudentJobApplicationsView(generics.ListAPIView):
 
         return JobApplication.objects.filter(student=user)
 
-class EmployerJobApplicationsView(generics.ListAPIView):
+class JobApplicationsManagementView(generics.ListAPIView):
+    """View for employers to see applications for their job posts and admins to see all applications."""
     serializer_class = JobApplicationSerializer
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
-        return JobApplication.objects.filter(job__employer=self.request.user)
+        user = self.request.user
+        
+        # Admin users can see all applications
+        if user.user_type == "admin" or user.user_type == "faculty":
+            return JobApplication.objects.all()
+            
+        # Employers can only see applications for their own job posts
+        if user.user_type == "employer":
+            return JobApplication.objects.filter(job__employer=user)
+            
+        # Other user types aren't allowed to access this endpoint
+        raise PermissionDenied("Only employers can view applications for their job posts, or admins can view all applications.")
+
+class JobApplicationDetailView(generics.RetrieveUpdateDestroyAPIView):
+    serializer_class = JobApplicationSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def get_queryset(self):
+        user = self.request.user
+        
+        # Students can only view their own applications
+        if user.user_type == "student":
+            return JobApplication.objects.filter(student=user)
+        
+        # Employers can only view applications for their job posts
+        elif user.user_type == "employer":
+            return JobApplication.objects.filter(job__employer=user)
+        
+        # Admins can view all applications
+        elif user.user_type == "admin" or user.user_type == "faculty":
+            return JobApplication.objects.all()
+        
+        return JobApplication.objects.none()
+    
+    def update(self, request, *args, **kwargs):
+        instance = self.get_object()
+        
+        # Only employers should be able to add feedback
+        if request.user.user_type != "employer" or instance.job.employer != request.user:
+            return Response(
+                {"error": "Only the employer who posted this job can provide feedback"},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        # If the request is only to update feedback, only update that field
+        if len(request.data) == 1 and 'feedback' in request.data:
+            instance.feedback = request.data['feedback']
+            instance.save()
+            serializer = self.get_serializer(instance)
+            return Response(serializer.data)
+        
+        return super().update(request, *args, **kwargs)
+    
+    def destroy(self, request, *args, **kwargs):
+        instance = self.get_object()
+        
+        # Only the student who created the application or an admin can delete it
+        if request.user.user_type == "student" and instance.student != request.user:
+            return Response(
+                {"error": "You can only delete your own applications"},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        # Employers cannot delete applications
+        if request.user.user_type == "employer":
+            return Response(
+                {"error": "Employers cannot delete job applications"},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        return super().destroy(request, *args, **kwargs)

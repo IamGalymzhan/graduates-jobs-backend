@@ -1,4 +1,4 @@
-from rest_framework import generics, permissions, filters
+from rest_framework import generics, permissions, filters, status
 from django.contrib.auth import get_user_model
 from rest_framework_simplejwt.views import TokenObtainPairView
 from .serializers import RegisterSerializer, LoginSerializer, StudentProfileSerializer, SkillSerializer
@@ -10,6 +10,7 @@ from django.shortcuts import get_object_or_404
 from django.shortcuts import redirect
 from django.conf import settings
 from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework.response import Response
 
 User = get_user_model()
 
@@ -48,7 +49,7 @@ class StudentListView(generics.ListAPIView):
         raise PermissionDenied("You do not have permission to view this list.")
 
 
-class StudentPublicProfileView(generics.RetrieveAPIView):
+class StudentPublicProfileView(generics.RetrieveDestroyAPIView):
     serializer_class = StudentProfileSerializer
     permission_classes = [permissions.IsAuthenticated]
 
@@ -69,6 +70,18 @@ class StudentPublicProfileView(generics.RetrieveAPIView):
             return get_object_or_404(CustomUser, id=student_id, user_type="student")
 
         raise PermissionDenied("You do not have permission to access this profile.")
+        
+    def destroy(self, request, *args, **kwargs):
+        user = self.request.user
+        
+        # Only allow admins and faculty to delete student profiles
+        if user.user_type not in ["admin", "faculty"]:
+            return Response(
+                {"error": "Only administrators and faculty members can delete student profiles"},
+                status=status.HTTP_403_FORBIDDEN
+            )
+            
+        return super().destroy(request, *args, **kwargs)
 
 
 class SkillPagination(PageNumberPagination):
