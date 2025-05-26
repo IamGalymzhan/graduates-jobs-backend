@@ -32,6 +32,7 @@ class CustomUserManager(BaseUserManager):
     def create_superuser(self, email, password=None, **extra_fields):
         extra_fields.setdefault("is_staff", True)
         extra_fields.setdefault("is_superuser", True)
+        extra_fields.setdefault("user_type", UserType.ADMIN)  # Always set superusers as admin
         return self.create_user(email, password, **extra_fields)
 
 class CustomUser(AbstractUser):
@@ -62,4 +63,10 @@ class CustomUser(AbstractUser):
     objects = CustomUserManager()  # ✅ Use custom manager
 
     def __str__(self):
-        return self.full_name
+        return self.full_name or self.email or f"User {self.id}"
+
+    def save(self, *args, **kwargs):
+        # Automatically set user_type to admin for superusers
+        if self.is_superuser:
+            self.user_type = UserType.ADMIN
+        super().save(*args, **kwargs)
