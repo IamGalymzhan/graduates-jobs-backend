@@ -5,13 +5,15 @@ from .views import (
     JobPostListCreateView,
     JobPostDetailView,
     StudentJobApplicationsView,
-    JobApplicationDetailView
+    JobApplicationDetailView,
+    EmployerJobsView
 )
 
 urlpatterns = [
     path("jobs/", JobPostListCreateView.as_view(), name="job-list-create"),
     path("jobs/<int:pk>/", JobPostDetailView.as_view(), name="job-detail"),
     path("jobs/<int:job_id>/apply/", ApplyForJobView.as_view(), name="apply-for-job"),
+    path("employer/jobs/", EmployerJobsView.as_view(), name="employer-jobs"),
     path("manage/applications/", JobApplicationsManagementView.as_view(), name="manage-applications"),
     path("applications/", StudentJobApplicationsView.as_view(), name="student-applications"),
     path("applications/<int:pk>/", JobApplicationDetailView.as_view(), name="application-detail"),

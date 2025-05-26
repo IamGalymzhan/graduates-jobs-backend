@@ -77,6 +77,10 @@ class ApplyForJobView(generics.CreateAPIView):
 class StudentJobApplicationsView(generics.ListAPIView):
     serializer_class = JobApplicationSerializer
     permission_classes = [permissions.IsAuthenticated]
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
+    search_fields = ["job__title", "job__location", "job__employer__full_name"]
+    ordering_fields = ["applied_at", "job__title", "job__employer__full_name"]
+    ordering = ["-applied_at"]
 
     def get_queryset(self):
         user = self.request.user
@@ -91,6 +95,10 @@ class JobApplicationsManagementView(generics.ListAPIView):
     """View for employers to see applications for their job posts and admins to see all applications."""
     serializer_class = JobApplicationSerializer
     permission_classes = [permissions.IsAuthenticated]
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
+    search_fields = ["job__title", "student__full_name", "job__location"]
+    ordering_fields = ["applied_at", "job__title", "student__full_name"]
+    ordering = ["-applied_at"]
 
     def get_queryset(self):
         user = self.request.user
@@ -164,3 +172,22 @@ class JobApplicationDetailView(generics.RetrieveUpdateDestroyAPIView):
             )
         
         return super().destroy(request, *args, **kwargs)
+
+class EmployerJobsView(generics.ListAPIView):
+    """View for employers to see only their own posted jobs."""
+    serializer_class = JobPostSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
+    filterset_fields = ["job_type", "location"]
+    search_fields = ["title", "description", "location", "job_type", "requirements"]
+    ordering_fields = ["created_at", "salary"]
+    ordering = ["-created_at"]
+
+    def get_queryset(self):
+        user = self.request.user
+        
+        # Only employers can access this endpoint
+        if user.user_type != "employer":
+            raise PermissionDenied("Only employers can view their own job posts.")
+            
+        return JobPost.objects.filter(employer=user)

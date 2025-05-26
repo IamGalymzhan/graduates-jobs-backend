@@ -8,6 +8,9 @@ from jobs.models import JobPost, JobApplication
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
+from rest_framework import generics, filters
+from django_filters.rest_framework import DjangoFilterBackend
+from jobs.serializers import JobApplicationSerializer
 
 class FacultyStatisticsView(APIView):
     permission_classes = [IsAuthenticated]
@@ -53,14 +56,17 @@ class FacultyStatisticsView(APIView):
             "student_statuses": list(student_statuses),
         })
 
-class FacultyApplicationsView(APIView):
+class FacultyApplicationsView(generics.ListAPIView):
+    """View for faculty to see all applications with pagination, filtering, and ordering."""
+    serializer_class = JobApplicationSerializer
     permission_classes = [IsAuthenticated]
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
+    search_fields = ["job__title", "student__full_name", "job__location"]
+    ordering_fields = ["applied_at", "job__title", "student__full_name"]
+    ordering = ["-applied_at"]
 
-    def get(self, request):
-        if request.user.user_type != "faculty":
-            return Response({"error": "Unauthorized"}, status=403)
-
-        applications = JobApplication.objects.all()
-        serializer = serializers.JobApplicationSerializer(applications, many=True)
-        return Response(serializer.data)
+    def get_queryset(self):
+        if self.request.user.user_type != "faculty":
+            return JobApplication.objects.none()
+        return JobApplication.objects.all()
     

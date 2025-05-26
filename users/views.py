@@ -1,7 +1,7 @@
 from rest_framework import generics, permissions, filters, status
 from django.contrib.auth import get_user_model
 from rest_framework_simplejwt.views import TokenObtainPairView
-from .serializers import RegisterSerializer, LoginSerializer, StudentProfileSerializer, SkillSerializer
+from .serializers import RegisterSerializer, LoginSerializer, StudentProfileSerializer, SkillSerializer, UniversalProfileSerializer
 from rest_framework.parsers import MultiPartParser, FormParser
 from .models import CustomUser, Skill
 from rest_framework.pagination import PageNumberPagination
@@ -20,6 +20,26 @@ class RegisterView(generics.CreateAPIView):
 
 class LoginView(TokenObtainPairView):
     serializer_class = LoginSerializer
+
+class ProfileView(generics.RetrieveUpdateAPIView):
+    """
+    Universal profile view that handles both student and employer profiles
+    """
+    serializer_class = UniversalProfileSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    parser_classes = [MultiPartParser, FormParser] 
+
+    def get_object(self):
+        return self.request.user
+
+    def get_serializer_context(self):
+        return {"request": self.request}
+
+    def update(self, request, *args, **kwargs):
+        print("Received profile update data:", request.data)
+        if hasattr(request.data, 'getlist'):
+            print("Received skills data:", request.data.getlist("skills"))
+        return super().update(request, *args, **kwargs)
 
 class StudentProfileView(generics.RetrieveUpdateAPIView):
     serializer_class = StudentProfileSerializer

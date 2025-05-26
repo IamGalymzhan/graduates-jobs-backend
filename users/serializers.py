@@ -44,7 +44,7 @@ class SkillSerializer(serializers.ModelSerializer):
 class StudentProfileSerializer(serializers.ModelSerializer):
     class Meta:
         model = CustomUser
-        fields = ["id", "full_name", "profile_picture", "education", "skills", "status"]
+        fields = ["id", "full_name", "email", "profile_picture", "education", "skills", "status", "resume"]
 
     def to_representation(self, instance):
         data = super().to_representation(instance)
@@ -57,4 +57,104 @@ class StudentProfileSerializer(serializers.ModelSerializer):
             data.pop("resume", None)
 
         return data
+
+class EmployerProfileSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CustomUser
+        fields = ["id", "full_name", "email", "company_name", "company_website", "company_description"]
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        return data
+
+class UniversalProfileSerializer(serializers.ModelSerializer):
+    """
+    A universal serializer that handles both student and employer profiles
+    based on the user type
+    """
+    # Override company_website to handle empty strings
+    company_website = serializers.URLField(required=False, allow_blank=True)
+    # Make email read-only
+    email = serializers.EmailField(read_only=True)
+    
+    class Meta:
+        model = CustomUser
+        fields = [
+            "id", "full_name", "email", "user_type",
+            # Student fields
+            "profile_picture", "education", "skills", "status", "resume",
+            # Employer fields  
+            "company_name", "company_website", "company_description"
+        ]
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        
+        # Add skills representation for students
+        if instance.user_type == "student":
+            data["skills"] = [{"id": skill.id, "name": skill.name} for skill in instance.skills.all()]
+            # Remove employer fields for students
+            data.pop("company_name", None)
+            data.pop("company_website", None) 
+            data.pop("company_description", None)
+        else:
+            # Remove student fields for employers
+            data.pop("profile_picture", None)
+            data.pop("education", None)
+            data.pop("skills", None)
+            data.pop("status", None)
+            data.pop("resume", None)
+
+        return data
+
+    def validate_company_website(self, value):
+        """
+        Custom validation for company_website to handle empty strings
+        """
+        if value == "":
+            return None
+        return value
+
+    def validate(self, data):
+        """
+        Custom validation to ensure only relevant fields are validated for each user type
+        """
+        user = self.instance
+        if user:
+            if user.user_type == "student":
+                # Remove employer fields from validation for students
+                data.pop("company_name", None)
+                data.pop("company_website", None)
+                data.pop("company_description", None)
+            elif user.user_type == "employer":
+                # Remove student fields from validation for employers
+                data.pop("profile_picture", None)
+                data.pop("education", None)
+                data.pop("skills", None)
+                data.pop("status", None)
+                data.pop("resume", None)
+        
+        return data
+
+    def update(self, instance, validated_data):
+        # Handle skills separately for students
+        if instance.user_type == "student" and "skills" in validated_data:
+            skills_data = validated_data.pop("skills")
+            instance.skills.set(skills_data)
+        
+        # Only update fields that are relevant to the user type (excluding email)
+        if instance.user_type == "student":
+            # Only allow student fields (no email)
+            allowed_fields = ["full_name", "profile_picture", "education", "status", "resume"]
+        else:
+            # Only allow employer fields (no email, no profile_picture)
+            allowed_fields = ["full_name", "company_name", "company_website", "company_description"]
+        
+        # Update only allowed fields
+        for attr, value in validated_data.items():
+            if attr in allowed_fields:
+                setattr(instance, attr, value)
+        
+        instance.save()
+        return instance
 
